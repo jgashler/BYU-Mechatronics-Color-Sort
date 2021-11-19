@@ -5,6 +5,8 @@
 Servo mainServo, RServo, GServo, BServo, YServo;
 Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_600MS, TCS34725_GAIN_1X /*1X, 4X, 16X, 60X*/);
 
+//#define PRINT_SERIAL
+
 enum Color {RED, GREEN, BLUE, YELLOW};
 
 #define RUR_BOUND 1
@@ -38,9 +40,11 @@ enum Color {RED, GREEN, BLUE, YELLOW};
 void setup(void) {
   Serial.begin(9600); 
   if (!tcs.begin()) {
+#ifdef PRINT_SERIAL
       Serial.println("TCS34725 not found, check connections");
       Serial.println("SDA -> A4, SCL -> A5, GND -> GND, VIN -> 5V");
       Serial.println("Also make sure the connections on the TCS34725 are strong...");
+#endif
       while (!tcs.begin());
     }
   Serial.println("Found sensor");
@@ -70,22 +74,18 @@ void loop(void) {
   
   //when a color is sensed, dropBall(color)
   if (color == RED) {
-    Serial.println("open red door");
     dropBall(RServo);
     goto PING;
   }
   else if (color == GREEN) {
-    Serial.println("open green door");
     dropBall(GServo);
     goto PING;
   }
   else if (color == BLUE) {
-    Serial.println("open blue door");
     dropBall(BServo);
     goto PING;
   }
   else if (color == YELLOW) {
-    Serial.println("open yellow door");
     dropBall(YServo);
     goto PING;
   }
@@ -94,10 +94,8 @@ void loop(void) {
 void dropBall(Servo color) {
   color.write(80);
   delay(1000);
-  Serial.println("open main door");
   mainServo.write(200);
   delay(1500);
-  Serial.println("close all doors");
   color.write(0);
   mainServo.write(0);
 }
@@ -109,12 +107,12 @@ Color colorMath(uint16_t red, uint16_t green, uint16_t blue, Adafruit_TCS34725 t
     return RED;
   }
   Color color;
-  double norm = (double)(red + green+ blue);
-  double r = red/norm;
-  double g = green/norm;
-  double b = blue/norm;
+  double tot = sqrt((double)(red*red + green*green + blue*blue));
+  double r = red/tot;
+  double g = green/tot;
+  double b = blue/tot;
 
-  //check to see if the current rbg value falls within the defined bounds
+  //check to see if the current rbg value falls within the defined bounds of a color
   if (r > RLR_BOUND && r < RUR_BOUND && g > RLG_BOUND && g < RUG_BOUND && b > RLB_BOUND && b < RUB_BOUND) color = RED;
   else if (r > GLR_BOUND && r < GUR_BOUND && g > GLG_BOUND && g < GUG_BOUND && b > GLB_BOUND && b < GUB_BOUND) color = GREEN;
   else if (r > BLR_BOUND && r < BUR_BOUND && g > BLG_BOUND && g < BUG_BOUND && b > BLB_BOUND && b < BUB_BOUND) color = BLUE;
@@ -127,6 +125,7 @@ Color colorMath(uint16_t red, uint16_t green, uint16_t blue, Adafruit_TCS34725 t
     color = colorMath(nr, ng, nb, tcs, call);
   }
 
+#ifdef PRINT_SERIAL
   //print data to serial
   Serial.print("R: ");
   Serial.println(r);
@@ -149,5 +148,6 @@ Color colorMath(uint16_t red, uint16_t green, uint16_t blue, Adafruit_TCS34725 t
       Serial.println("YELLOW");
       break;
   }
+#endif
   return color;
 }
