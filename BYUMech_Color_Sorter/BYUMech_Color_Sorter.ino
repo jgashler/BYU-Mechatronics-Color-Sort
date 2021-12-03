@@ -6,6 +6,7 @@
 Servo mainServo, RServo, GServo, BServo;
 Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_600MS, TCS34725_GAIN_1X /*1X, 4X, 16X, 60X*/);
 enum Color {RED, GREEN, BLUE, YELLOW};
+uint16_t r, g, b, c;
 
 void setup(void) {
   Serial.begin(9600); 
@@ -24,15 +25,21 @@ void setup(void) {
   GServo.write(0);
   BServo.attach(11);
   BServo.write(0);
+  pinMode(13, OUTPUT);
 }
  
 void loop(void) {
-  uint16_t r, g, b, c;
-  //PING dispenser
-  delay(5000);
+  pingDispenser();
   tcs.getRawData(&r, &g, &b, &c);
   Color color = colorMath(r,g,b);
   dropBall(color);
+}
+
+void pingDispenser() {
+  digitalWrite(13, HIGH);
+  delay(50);
+  digitalWrite(13, LOW);
+  delay(5000);              //change this delay to wait for the ball to enter box
 }
 
 void dropBall(Color color) {
