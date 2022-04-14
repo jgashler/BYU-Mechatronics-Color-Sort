@@ -1,10 +1,10 @@
-//#define PRINT_SERIAL
+#define PRINT_SERIAL
 #include <Wire.h>
 #include <Servo.h>
 #include "Adafruit_TCS34725.h"
 
 Servo mainServo, RServo, GServo, BServo;
-Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_600MS, TCS34725_GAIN_1X /*1X, 4X, 16X, 60X*/);
+Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_600MS, TCS34725_GAIN_1X);
 enum Color {RED, GREEN, BLUE, YELLOW};
 uint16_t r, g, b, c;
 
@@ -17,6 +17,8 @@ void setup(void) {
     while (!tcs.begin());
   }
   Serial.println("Found sensor");
+  
+  //attach servos and set initial positions
   mainServo.attach(6);
   mainServo.write(0);   
   RServo.attach(9);
@@ -28,6 +30,7 @@ void setup(void) {
   pinMode(13, OUTPUT);
 }
  
+//main
 void loop(void) {
   pingDispenser();
   tcs.getRawData(&r, &g, &b, &c);
@@ -37,36 +40,29 @@ void loop(void) {
 
 void pingDispenser() {
   digitalWrite(13, HIGH);
-  delay(50);
+  delay(50);                //door open for 50ms
   digitalWrite(13, LOW);
-  delay(5000);              //change this delay to wait for the ball to enter box
+  delay(2000);              //change this delay to wait for the ball to enter box
 }
 
-void dropBall(Color color) {
-  if (color == RED) RServo.write(45);
-  else if (color == GREEN) GServo.write(45);
-  else if (color == BLUE) BServo.write(45); 
-  delay(300);
-  mainServo.write(60);
-  delay(300);
-  if (color == RED) RServo.write(90);
-  else if (color == GREEN) GServo.write(0);
-  else if (color == BLUE) BServo.write(0);
-  mainServo.write(0);  
-}
-
+//receive RGB data from color sensor and do some maths to determine which of the four colors we have
 Color colorMath(uint16_t red, uint16_t green, uint16_t blue) {
   Color color;
+  
+  //normalize the color values
   double tot = sqrt((double)(red*red + green*green + blue*blue));
   double r = red/tot;
   double g = green/tot;
   double b = blue/tot;
+  
+  //based on weights of values, choose the most likely color (as per the data gathered on the whiteboard)
   if (b > r && b > g) color = BLUE;
   else if (r / b > 2 && g / b > 2) color = YELLOW;
   else if (r > b && r > g) color = RED;
   else if (g > r && g > b) color = GREEN;
-  else color = RED;
+  else color = RED; //default :(
 #ifdef PRINT_SERIAL
+  //print data to console for debugging
   Serial.print("R: ");
   Serial.println(r);
   Serial.print("G: ");
@@ -80,4 +76,23 @@ Color colorMath(uint16_t red, uint16_t green, uint16_t blue) {
   else if (color == YELLOW) Serial.println("YELLOW");
 #endif
   return color;
+}
+
+//receive color of ball as argument and open the corresponding door
+void dropBall(Color color) {
+  //open colored door
+  if (color == RED) RServo.write(45);
+  else if (color == GREEN) GServo.write(45);
+  else if (color == BLUE) BServo.write(45); 
+  delay(300);
+  
+  //wait, then open the main door
+  mainServo.write(60);
+  delay(300);
+  
+  //wait, then close all doors
+  if (color == RED) RServo.write(90);
+  else if (color == GREEN) GServo.write(0);
+  else if (color == BLUE) BServo.write(0);
+  mainServo.write(0);  
 }
